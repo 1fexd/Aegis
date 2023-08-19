@@ -175,7 +175,7 @@ public class EntryListView extends Fragment implements EntryAdapter.Listener {
     }
 
     public void setIsCopyOnTapEnabled(boolean enabled) {
-       _adapter.setIsCopyOnTapEnabled(enabled);
+        _adapter.setIsCopyOnTapEnabled(enabled);
     }
 
     public void setActionModeState(boolean enabled, VaultEntry entry) {
@@ -396,6 +396,14 @@ public class EntryListView extends Fragment implements EntryAdapter.Listener {
         _adapter.focusEntry(entry, secondsToFocus);
     }
 
+    public VaultEntry findEntryForDomain(String domain) {
+        return _adapter.findEntryForDomain(domain);
+    }
+
+    public Preferences.CodeGrouping getCodeGrouping(){
+        return _adapter.getCodeGrouping();
+    }
+
     public void addEntries(Collection<VaultEntry> entries) {
         _adapter.addEntries(entries);
         updateEmptyState();
@@ -487,7 +495,7 @@ public class EntryListView extends Fragment implements EntryAdapter.Listener {
                     if (chip.getTag() != null) {
                         return null;
                     }
-                    return chip. getText().toString();
+                    return chip.getText().toString();
                 })
                 .collect(Collectors.toList());
     }
@@ -525,7 +533,7 @@ public class EntryListView extends Fragment implements EntryAdapter.Listener {
     }
 
     private List<String> cleanGroupFilter(List<String> groupFilter) {
-       return groupFilter.stream()
+        return groupFilter.stream()
                 .filter(g -> g == null || _groups.contains(g))
                 .collect(Collectors.toList());
     }
@@ -559,16 +567,27 @@ public class EntryListView extends Fragment implements EntryAdapter.Listener {
 
     public interface Listener {
         void onEntryClick(VaultEntry entry);
+
         void onEntryMove(VaultEntry entry1, VaultEntry entry2);
+
         void onEntryDrop(VaultEntry entry);
+
         void onEntryChange(VaultEntry entry);
+
         void onEntryCopy(VaultEntry entry);
+
         void onLongEntryClick(VaultEntry entry);
+
         void onScroll(int dx, int dy);
+
         void onSelect(VaultEntry entry);
+
         void onDeselect(VaultEntry entry);
+
         void onListChange();
+
         void onSaveGroupFilter(List<String> groupFilter);
+
         void onEntryListTouch();
     }
 
@@ -667,11 +686,11 @@ public class EntryListView extends Fragment implements EntryAdapter.Listener {
         @Override
         public RequestBuilder<Drawable> getPreloadRequestBuilder(@NonNull VaultEntry entry) {
             return Glide.with(EntryListView.this)
-                        .asDrawable()
-                        .load(entry)
-                        .set(IconLoader.ICON_TYPE, entry.getIconType())
-                        .diskCacheStrategy(DiskCacheStrategy.NONE)
-                        .skipMemoryCache(false);
+                    .asDrawable()
+                    .load(entry)
+                    .set(IconLoader.ICON_TYPE, entry.getIconType())
+                    .diskCacheStrategy(DiskCacheStrategy.NONE)
+                    .skipMemoryCache(false);
         }
     }
 }

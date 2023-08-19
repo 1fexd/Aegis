@@ -27,6 +27,7 @@ import com.beemdevelopment.aegis.otp.SteamInfo;
 import com.beemdevelopment.aegis.otp.TotpInfo;
 import com.beemdevelopment.aegis.otp.YandexInfo;
 import com.beemdevelopment.aegis.ui.glide.IconLoader;
+import com.beemdevelopment.aegis.util.CodeGrouper;
 import com.beemdevelopment.aegis.vault.VaultEntry;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
@@ -289,42 +290,13 @@ public class EntryHolder extends RecyclerView.ViewHolder {
         try {
             otp = info.getOtp();
             if (!(info instanceof SteamInfo || info instanceof YandexInfo)) {
-                otp = formatCode(otp);
+                otp = CodeGrouper.INSTANCE.formatCode(_codeGrouping, otp);
             }
         } catch (OtpInfoException e) {
             otp = _view.getResources().getString(R.string.error_all_caps);
         }
 
         _profileCode.setText(otp);
-    }
-
-    private String formatCode(String code) {
-        int groupSize;
-        StringBuilder sb = new StringBuilder();
-
-        switch (_codeGrouping) {
-            case NO_GROUPING:
-                groupSize = code.length();
-                break;
-            case HALVES:
-                groupSize = (code.length() / 2) + (code.length() % 2);
-                break;
-            default:
-                groupSize = _codeGrouping.getValue();
-                if (groupSize <= 0) {
-                    throw new IllegalArgumentException("Code group size cannot be zero or negative");
-                }
-        }
-
-        for (int i = 0; i < code.length(); i++) {
-            if (i != 0 && i % groupSize == 0) {
-                sb.append(" ");
-            }
-            sb.append(code.charAt(i));
-        }
-        code = sb.toString();
-
-        return code;
     }
 
     public void revealCode() {
@@ -334,7 +306,7 @@ public class EntryHolder extends RecyclerView.ViewHolder {
 
     public void hideCode() {
         String hiddenText = new String(new char[_entry.getInfo().getDigits()]).replace("\0", Character.toString(HIDDEN_CHAR));
-        hiddenText = formatCode(hiddenText);
+        hiddenText = CodeGrouper.INSTANCE.formatCode(_codeGrouping, hiddenText);
         _profileCode.setText(hiddenText);
         _hidden = true;
     }

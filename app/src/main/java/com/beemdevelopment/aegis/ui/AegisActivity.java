@@ -16,6 +16,7 @@ import com.beemdevelopment.aegis.R;
 import com.beemdevelopment.aegis.Theme;
 import com.beemdevelopment.aegis.ThemeMap;
 import com.beemdevelopment.aegis.icons.IconPackManager;
+import com.beemdevelopment.aegis.sync.RequestHandler;
 import com.beemdevelopment.aegis.vault.VaultManager;
 import com.beemdevelopment.aegis.vault.VaultRepositoryException;
 

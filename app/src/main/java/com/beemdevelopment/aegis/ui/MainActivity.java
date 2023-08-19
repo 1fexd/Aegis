@@ -1,5 +1,7 @@
 package com.beemdevelopment.aegis.ui;
 
+import static androidx.core.text.HtmlCompat.FROM_HTML_MODE_LEGACY;
+
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.ClipData;
@@ -14,9 +16,11 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.PersistableBundle;
 import android.provider.Settings;
+import android.text.Html;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
 import android.text.style.StyleSpan;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -34,6 +38,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.view.ActionMode;
 import androidx.appcompat.widget.SearchView;
+import androidx.core.text.HtmlCompat;
 
 import com.beemdevelopment.aegis.AccountNamePosition;
 import com.beemdevelopment.aegis.Preferences;
@@ -45,11 +50,15 @@ import com.beemdevelopment.aegis.helpers.PermissionHelper;
 import com.beemdevelopment.aegis.otp.GoogleAuthInfo;
 import com.beemdevelopment.aegis.otp.GoogleAuthInfoException;
 import com.beemdevelopment.aegis.otp.OtpInfoException;
+import com.beemdevelopment.aegis.sync.ClientSocket;
+import com.beemdevelopment.aegis.sync.RequestHandler;
+import com.beemdevelopment.aegis.sync.WebSocketMessage;
 import com.beemdevelopment.aegis.ui.dialogs.Dialogs;
 import com.beemdevelopment.aegis.ui.fragments.preferences.BackupsPreferencesFragment;
 import com.beemdevelopment.aegis.ui.fragments.preferences.PreferencesFragment;
 import com.beemdevelopment.aegis.ui.tasks.QrDecodeTask;
 import com.beemdevelopment.aegis.ui.views.EntryListView;
+import com.beemdevelopment.aegis.util.CodeGrouper;
 import com.beemdevelopment.aegis.util.TimeUtils;
 import com.beemdevelopment.aegis.vault.VaultEntry;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
@@ -64,9 +73,15 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.TreeSet;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-public class MainActivity extends AegisActivity implements EntryListView.Listener {
+import okhttp3.OkHttp;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.WebSocket;
+
+public class MainActivity extends AegisActivity implements EntryListView.Listener, RequestHandler {
     // activity request codes
     private static final int CODE_SCAN = 0;
     private static final int CODE_ADD_ENTRY = 1;
@@ -104,6 +119,8 @@ public class MainActivity extends AegisActivity implements EntryListView.Listene
     private LockBackPressHandler _lockBackPressHandler;
     private SearchViewBackPressHandler _searchViewBackPressHandler;
     private ActionModeBackPressHandler _actionModeBackPressHandler;
+    private OkHttpClient _okHttpClient;
+    private WebSocket _webSocket;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -143,27 +160,27 @@ public class MainActivity extends AegisActivity implements EntryListView.Listene
         _entryListView.setIsCopyOnTapEnabled(_prefs.isCopyOnTapEnabled());
         _entryListView.setPrefGroupFilter(_prefs.getGroupFilter());
 
-         FloatingActionButton fab = findViewById(R.id.fab);
-         fab.setOnClickListener(v -> {
-             View view = getLayoutInflater().inflate(R.layout.dialog_add_entry, null);
-             BottomSheetDialog dialog = new BottomSheetDialog(this);
-             dialog.setContentView(view);
+        FloatingActionButton fab = findViewById(R.id.fab);
+        fab.setOnClickListener(v -> {
+            View view = getLayoutInflater().inflate(R.layout.dialog_add_entry, null);
+            BottomSheetDialog dialog = new BottomSheetDialog(this);
+            dialog.setContentView(view);
 
-             view.findViewById(R.id.fab_enter).setOnClickListener(v1 -> {
-                 dialog.dismiss();
-                 startEditEntryActivityForManual(CODE_ADD_ENTRY);
-             });
-             view.findViewById(R.id.fab_scan_image).setOnClickListener(v2 -> {
-                 dialog.dismiss();
-                 startScanImageActivity();
-             });
-             view.findViewById(R.id.fab_scan).setOnClickListener(v3 -> {
-                 dialog.dismiss();
-                 startScanActivity();
-             });
+            view.findViewById(R.id.fab_enter).setOnClickListener(v1 -> {
+                dialog.dismiss();
+                startEditEntryActivityForManual(CODE_ADD_ENTRY);
+            });
+            view.findViewById(R.id.fab_scan_image).setOnClickListener(v2 -> {
+                dialog.dismiss();
+                startScanImageActivity();
+            });
+            view.findViewById(R.id.fab_scan).setOnClickListener(v3 -> {
+                dialog.dismiss();
+                startScanActivity();
+            });
 
-             Dialogs.showSecureDialog(dialog);
-         });
+            Dialogs.showSecureDialog(dialog);
+        });
 
         _btnErrorBar = findViewById(R.id.btn_error_bar);
         _textErrorBar = findViewById(R.id.text_error_bar);
@@ -172,9 +189,57 @@ public class MainActivity extends AegisActivity implements EntryListView.Listene
         _selectedEntries = new ArrayList<>();
     }
 
+    private static final String DEVICE_TOKEN = "fMd1PukLWXbno4R2WuSE5IhCSjxnPMtRjm9C8Hu7W2DD0Kwbz8bXqK2h1DVdMeJFne1JINFN4lsQNpamPdIZqOrNhOQuYQHVzWov3O38hiZ6PnqYedgeHsRyMstnBLx5";
+
+    public void setupWebSocket() {
+        if (_webSocket == null) {
+            _okHttpClient = new OkHttpClient.Builder().pingInterval(1, TimeUnit.MINUTES).build();
+            _webSocket = _okHttpClient.newWebSocket(
+                    new Request.Builder().url("ws://192.168.8.2:23456/message")
+                            .addHeader("Device-Token", DEVICE_TOKEN)
+                            .build(), new ClientSocket(this)
+            );
+
+            _okHttpClient.dispatcher().executorService().shutdown();
+            Log.d("Socket", "Setup " + _webSocket);
+        }
+    }
+
+    @Override
+    public void onRequestForDomain(@NonNull String id, @NonNull String domain) {
+        VaultEntry entry = _entryListView.findEntryForDomain(domain);
+        if (entry != null) {
+
+            String otp;
+            try {
+                otp = entry.getInfo().getOtp();
+            } catch (OtpInfoException e) {
+                throw new RuntimeException(e);
+            }
+
+            String finalOtp = CodeGrouper.INSTANCE.formatCode(_entryListView.getCodeGrouping(), otp);
+            runOnUiThread(() -> {
+                _entryListView.tempHighlightEntry(entry);
+
+                Dialogs.showShareTokenDialog(this, R.string.share_token, HtmlCompat.fromHtml(getString(R.string.share_token_message, finalOtp, domain), FROM_HTML_MODE_LEGACY), (dialog, which) -> {
+                    ClientSocket.Companion.send(_webSocket, new WebSocketMessage.CurrentToken(id, finalOtp));
+                }, (dialog, which) -> {
+                    ClientSocket.Companion.send(_webSocket, new WebSocketMessage.DenySharing(id));
+                });
+            });
+        }
+    }
+
     @Override
     protected void onDestroy() {
         _entryListView.setListener(null);
+
+        if (_webSocket != null) {
+            _webSocket.close(1000, "");
+            _webSocket = null;
+        }
+
+        _okHttpClient = null;
         super.onDestroy();
     }
 
@@ -185,6 +250,12 @@ public class MainActivity extends AegisActivity implements EntryListView.Listene
             _prefs.setUsageCount(usageMap);
         }
 
+        if (_webSocket != null) {
+            _webSocket.close(1000, "");
+            _webSocket = null;
+        }
+
+        _okHttpClient = null;
         super.onPause();
     }
 
@@ -394,7 +465,7 @@ public class MainActivity extends AegisActivity implements EntryListView.Listene
                     Uri scanned = Uri.parse(res.getResult().getText());
                     if (Objects.equals(scanned.getScheme(), GoogleAuthInfo.SCHEME_EXPORT)) {
                         GoogleAuthInfo.Export export = GoogleAuthInfo.parseExportUri(scanned);
-                        for (GoogleAuthInfo info: export.getEntries()) {
+                        for (GoogleAuthInfo info : export.getEntries()) {
                             VaultEntry entry = new VaultEntry(info);
                             entries.add(entry);
                         }
@@ -443,7 +514,7 @@ public class MainActivity extends AegisActivity implements EntryListView.Listene
         if (entries.size() == 1) {
             startEditEntryActivityForNew(CODE_ADD_ENTRY, entries.get(0));
         } else if (entries.size() > 1) {
-            for (VaultEntry entry: entries) {
+            for (VaultEntry entry : entries) {
                 _vaultManager.getVault().addEntry(entry);
                 _entryListView.addEntry(entry);
             }
@@ -498,7 +569,7 @@ public class MainActivity extends AegisActivity implements EntryListView.Listene
         fileIntent.setType("image/*");
 
         Intent chooserIntent = Intent.createChooser(galleryIntent, getString(R.string.select_picture));
-        chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Intent[] { fileIntent });
+        chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Intent[]{fileIntent});
         _vaultManager.startActivityForResult(this, chooserIntent, CODE_SCAN_IMAGE);
     }
 
@@ -626,18 +697,22 @@ public class MainActivity extends AegisActivity implements EntryListView.Listene
 
         if (!_vaultManager.isVaultLoaded()) {
             startAuthActivity(false);
-        } else if (_loaded) {
-            // update the list of groups in the entry list view so that the chip gets updated
-            _entryListView.setGroups(_vaultManager.getVault().getGroups());
-
-            // update the usage counts in case they are edited outside of the EntryListView
-            _entryListView.setUsageCounts(_prefs.getUsageCounts());
-
-            // refresh all codes to prevent showing old ones
-            _entryListView.refresh(false);
         } else {
-            loadEntries();
-            checkTimeSyncSetting();
+            if (_loaded) {
+                // update the list of groups in the entry list view so that the chip gets updated
+                _entryListView.setGroups(_vaultManager.getVault().getGroups());
+
+                // update the usage counts in case they are edited outside of the EntryListView
+                _entryListView.setUsageCounts(_prefs.getUsageCounts());
+
+                // refresh all codes to prevent showing old ones
+                _entryListView.refresh(false);
+            } else {
+                loadEntries();
+                checkTimeSyncSetting();
+            }
+
+            setupWebSocket();
         }
 
         _lockBackPressHandler.setEnabled(
@@ -651,7 +726,7 @@ public class MainActivity extends AegisActivity implements EntryListView.Listene
     }
 
     private void deleteEntries(List<VaultEntry> entries) {
-        for (VaultEntry entry: entries) {
+        for (VaultEntry entry : entries) {
             VaultEntry oldEntry = _vaultManager.getVault().removeEntry(entry);
             _entryListView.removeEntry(oldEntry);
         }
@@ -915,7 +990,7 @@ public class MainActivity extends AegisActivity implements EntryListView.Listene
     private void setFavoriteMenuItemVisiblity() {
         MenuItem toggleFavoriteMenuItem = _actionMode.getMenu().findItem(R.id.action_toggle_favorite);
 
-        if (_selectedEntries.size() == 1){
+        if (_selectedEntries.size() == 1) {
             if (_selectedEntries.get(0).isFavorite()) {
                 toggleFavoriteMenuItem.setIcon(R.drawable.ic_set_favorite);
                 toggleFavoriteMenuItem.setTitle(R.string.unfavorite);
@@ -973,7 +1048,9 @@ public class MainActivity extends AegisActivity implements EntryListView.Listene
     }
 
     @Override
-    public void onListChange() { _fabScrollHelper.setVisible(true); }
+    public void onListChange() {
+        _fabScrollHelper.setVisible(true);
+    }
 
     @Override
     public void onSaveGroupFilter(List<String> groupFilter) {
@@ -1021,6 +1098,7 @@ public class MainActivity extends AegisActivity implements EntryListView.Listene
         }
     }
 
+
     private class SearchViewBackPressHandler extends OnBackPressedCallback {
         public SearchViewBackPressHandler() {
             super(false);
@@ -1067,88 +1145,88 @@ public class MainActivity extends AegisActivity implements EntryListView.Listene
     }
 
     private class ActionModeCallbacks implements ActionMode.Callback {
-            @Override
-            public boolean onCreateActionMode(ActionMode mode, Menu menu) {
-                MenuInflater inflater = getMenuInflater();
-                inflater.inflate(R.menu.menu_action_mode, menu);
+        @Override
+        public boolean onCreateActionMode(ActionMode mode, Menu menu) {
+            MenuInflater inflater = getMenuInflater();
+            inflater.inflate(R.menu.menu_action_mode, menu);
+            return true;
+        }
+
+        @Override
+        public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
+            return false;
+        }
+
+        @Override
+        public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
+            if (_selectedEntries.size() == 0) {
+                mode.finish();
                 return true;
             }
-
-            @Override
-            public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
-                return false;
-            }
-
-            @Override
-            public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
-                if (_selectedEntries.size() == 0) {
+            switch (item.getItemId()) {
+                case R.id.action_copy:
+                    copyEntryCode(_selectedEntries.get(0));
                     mode.finish();
                     return true;
-                }
-                switch (item.getItemId()) {
-                    case R.id.action_copy:
-                        copyEntryCode(_selectedEntries.get(0));
-                        mode.finish();
-                        return true;
 
-                    case R.id.action_edit:
-                        startEditEntryActivity(CODE_EDIT_ENTRY, _selectedEntries.get(0));
-                        mode.finish();
-                        return true;
+                case R.id.action_edit:
+                    startEditEntryActivity(CODE_EDIT_ENTRY, _selectedEntries.get(0));
+                    mode.finish();
+                    return true;
 
-                    case R.id.action_toggle_favorite:
+                case R.id.action_toggle_favorite:
+                    for (VaultEntry entry : _selectedEntries) {
+                        entry.setIsFavorite(!entry.isFavorite());
+                        _entryListView.replaceEntry(entry.getUUID(), entry);
+                    }
+                    _entryListView.refresh(true);
+
+                    saveAndBackupVault();
+                    mode.finish();
+                    return true;
+
+                case R.id.action_share_qr:
+                    Intent intent = new Intent(getBaseContext(), TransferEntriesActivity.class);
+                    ArrayList<GoogleAuthInfo> authInfos = new ArrayList<>();
+                    for (VaultEntry entry : _selectedEntries) {
+                        GoogleAuthInfo authInfo = new GoogleAuthInfo(entry.getInfo(), entry.getName(), entry.getIssuer());
+                        authInfos.add(authInfo);
+                    }
+
+                    intent.putExtra("authInfos", authInfos);
+                    startActivity(intent);
+
+                    mode.finish();
+                    return true;
+
+                case R.id.action_delete:
+                    Dialogs.showDeleteEntriesDialog(MainActivity.this, _selectedEntries, (d, which) -> {
+                        deleteEntries(_selectedEntries);
+
                         for (VaultEntry entry : _selectedEntries) {
-                            entry.setIsFavorite(!entry.isFavorite());
-                            _entryListView.replaceEntry(entry.getUUID(), entry);
-                        }
-                        _entryListView.refresh(true);
-
-                        saveAndBackupVault();
-                        mode.finish();
-                        return true;
-
-                    case R.id.action_share_qr:
-                        Intent intent = new Intent(getBaseContext(), TransferEntriesActivity.class);
-                        ArrayList<GoogleAuthInfo> authInfos = new ArrayList<>();
-                        for (VaultEntry entry : _selectedEntries) {
-                            GoogleAuthInfo authInfo = new GoogleAuthInfo(entry.getInfo(), entry.getName(), entry.getIssuer());
-                            authInfos.add(authInfo);
-                        }
-
-                        intent.putExtra("authInfos", authInfos);
-                        startActivity(intent);
-
-                        mode.finish();
-                        return true;
-
-                    case R.id.action_delete:
-                        Dialogs.showDeleteEntriesDialog(MainActivity.this, _selectedEntries, (d, which) -> {
-                            deleteEntries(_selectedEntries);
-
-                            for (VaultEntry entry : _selectedEntries) {
-                                if (entry.getGroup() != null) {
-                                    TreeSet<String> groups = _vaultManager.getVault().getGroups();
-                                    if (!groups.contains(entry.getGroup())) {
-                                        _entryListView.setGroups(groups);
-                                        break;
-                                    }
+                            if (entry.getGroup() != null) {
+                                TreeSet<String> groups = _vaultManager.getVault().getGroups();
+                                if (!groups.contains(entry.getGroup())) {
+                                    _entryListView.setGroups(groups);
+                                    break;
                                 }
                             }
+                        }
 
-                            mode.finish();
-                        });
-                        return true;
-                    default:
-                        return false;
-                }
+                        mode.finish();
+                    });
+                    return true;
+                default:
+                    return false;
             }
+        }
 
-            @Override
-            public void onDestroyActionMode(ActionMode mode) {
-                _entryListView.setActionModeState(false, null);
-                _actionModeBackPressHandler.setEnabled(false);
-                _selectedEntries.clear();
-                _actionMode = null;
-            }
+        @Override
+        public void onDestroyActionMode(ActionMode mode) {
+            _entryListView.setActionModeState(false, null);
+            _actionModeBackPressHandler.setEnabled(false);
+            _selectedEntries.clear();
+            _actionMode = null;
+        }
     }
 }

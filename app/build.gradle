@@ -173,6 +173,8 @@ dependencies {
     implementation 'info.guardianproject.trustedintents:trustedintents:0.2'
     implementation 'org.bouncycastle:bcprov-jdk18on:1.72'
     implementation "org.simpleflatmapper:sfm-csv:8.2.3"
+    implementation 'com.squareup.okhttp3:okhttp:4.11.0'
+    implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.4.0'
 
     androidTestAnnotationProcessor "com.google.dagger:hilt-android-compiler:$hiltVersion"
     androidTestImplementation "com.google.dagger:hilt-android-testing:$hiltVersion"

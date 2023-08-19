@@ -497,6 +497,11 @@
     <string name="pref_account_name_position_hidden">Hidden</string>
     <string name="pref_account_name_position_end">Next to the issuer</string>
     <string name="pref_account_name_position_below">Below the issuer</string>
+    <string name="domain">Domain</string>
+    <string name="share_token">Share token?</string>
+    <string name="share_token_message">The current token (<b>%s</b>) for <b>%s</b> was requested. Do you want to share it?</string>
+    <string name="pref_section_aegis_sync_title">Aegis Sync</string>
+    <string name="pref_section_aegis_sync_summary">Encrypted cloud backups and desktop token sharing</string>
 
     <plurals name="time_elapsed_seconds">
         <item quantity="one">%d second ago</item>

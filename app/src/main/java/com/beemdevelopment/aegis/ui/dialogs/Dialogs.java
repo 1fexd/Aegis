@@ -9,6 +9,7 @@ import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.text.InputType;
 import android.text.SpannableStringBuilder;
+import android.text.Spanned;
 import android.text.TextWatcher;
 import android.text.method.PasswordTransformationMethod;
 import android.view.LayoutInflater;
@@ -427,6 +428,26 @@ public class Dialogs {
                 .create());
     }
 
+    public static void showShareTokenDialog(Context context, @StringRes int title, CharSequence message,
+                                            DialogInterface.OnClickListener positiveListener,
+                                            DialogInterface.OnClickListener negativeListener) {
+        Dialogs.showSecureDialog(new AlertDialog.Builder(context)
+                .setTitle(title)
+                .setMessage(message)
+                .setCancelable(false)
+                .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                    if (positiveListener != null) {
+                        positiveListener.onClick(dialog, which);
+                    }
+                })
+                .setNegativeButton(context.getString(R.string.no), (dialog, which) -> {
+                    if (negativeListener != null) {
+                        negativeListener.onClick(dialog, which);
+                    }
+                })
+                .create());
+    }
+
     public static <T extends Throwable> void showMultiErrorDialog(
             Context context, @StringRes int title, String message, List<T> errors, DialogInterface.OnClickListener listener) {
         List<CharSequence> messages = new ArrayList<>();
@@ -469,7 +490,7 @@ public class Dialogs {
 
         Dialogs.showSecureDialog(dialog);
     }
-    
+
     public static void showTimeSyncWarningDialog(Context context, Dialog.OnClickListener listener) {
         Preferences prefs = new Preferences(context);
         View view = LayoutInflater.from(context).inflate(R.layout.dialog_time_sync, null);
@@ -529,7 +550,7 @@ public class Dialogs {
 
         View view = LayoutInflater.from(context).inflate(R.layout.dialog_error, null);
         TextView errorDetails = view.findViewById(R.id.error_details);
-        for (CharSequence error: scanningErrors) {
+        for (CharSequence error : scanningErrors) {
             errorDetails.append(error);
             errorDetails.append("\n\n");
         }
@@ -584,6 +605,7 @@ public class Dialogs {
 
     public interface PasswordSlotListener {
         void onSlotResult(PasswordSlot slot, Cipher cipher);
+
         void onException(Exception e);
     }
 

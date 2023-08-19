@@ -5,6 +5,12 @@
     android:title="@string/action_settings">
 
     <Preference
+        android:fragment="com.beemdevelopment.aegis.ui.fragments.preferences.AegisSyncPreferencesFragment"
+        app:icon="@drawable/ic_cloud_upload_outline_black_24dp"
+        app:title="@string/pref_section_aegis_sync_title"
+        app:summary="@string/pref_section_aegis_sync_summary" />
+
+    <Preference
         android:fragment="com.beemdevelopment.aegis.ui.fragments.preferences.AppearancePreferencesFragment"
         app:icon="@drawable/ic_brush_black_24dp"
         app:title="@string/pref_section_appearance_title"

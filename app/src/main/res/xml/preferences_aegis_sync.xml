@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:title="@string/pref_section_appearance_title">
+
+    <Preference
+        android:defaultValue="false"
+        android:key="pref_dark_mode"
+        android:title="@string/pref_select_theme_title"
+        app:iconSpaceReserved="false" />
+
+    <ListPreference
+        android:defaultValue="system"
+        android:entries="@array/pref_lang_entries"
+        android:entryValues="@array/pref_lang_values"
+        android:key="pref_lang"
+        android:summary="%s"
+        android:title="@string/pref_lang_title"
+        app:iconSpaceReserved="false" />
+</PreferenceScreen>

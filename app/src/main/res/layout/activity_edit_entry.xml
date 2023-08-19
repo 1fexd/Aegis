@@ -156,6 +156,33 @@
                     </com.google.android.material.textfield.TextInputLayout>
                 </LinearLayout>
                 <LinearLayout
+                    android:id="@+id/layout_domain"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:orientation="horizontal">
+                    <ImageView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:src="@drawable/ic_vpn_key_black_24dp"
+                        app:tint="?attr/iconColorPrimary"
+                        android:layout_marginStart="5dp"
+                        android:layout_marginEnd="15dp"
+                        android:layout_gravity="center_vertical"/>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:hint="@string/domain"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1">
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/text_domain"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="text|textMultiLine"/>
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
+                <LinearLayout
                     android:id="@+id/layout_secret"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"

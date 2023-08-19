@@ -145,7 +145,7 @@ public class EntryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
             }
         }
 
-        if (position < 0){
+        if (position < 0) {
             _shownEntries.add(entry);
 
             position = getItemCount() - 1;
@@ -162,8 +162,18 @@ public class EntryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         return position;
     }
 
+    public VaultEntry findEntryForDomain(String domain) {
+        for (VaultEntry entry : _entries) {
+            if (entry.getDomain().equalsIgnoreCase(domain)) {
+                return entry;
+            }
+        }
+
+        return null;
+    }
+
     public void addEntries(Collection<VaultEntry> entries) {
-        for (VaultEntry entry: entries) {
+        for (VaultEntry entry : entries) {
             entry.setUsageCount(_usageCounts.containsKey(entry.getUUID()) ? _usageCounts.get(entry.getUUID()) : 0);
         }
 
@@ -336,9 +346,13 @@ public class EntryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         _viewMode = viewMode;
     }
 
-    public void setUsageCounts(Map<UUID, Integer> usageCounts) { _usageCounts = usageCounts; }
+    public void setUsageCounts(Map<UUID, Integer> usageCounts) {
+        _usageCounts = usageCounts;
+    }
 
-    public Map<UUID, Integer> getUsageCounts() { return _usageCounts; }
+    public Map<UUID, Integer> getUsageCounts() {
+        return _usageCounts;
+    }
 
     public int getShownFavoritesCount() {
         return (int) _shownEntries.stream().filter(VaultEntry::isFavorite).count();
@@ -570,7 +584,7 @@ public class EntryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         Map<Integer, Integer> occurrences = new HashMap<>();
         for (TotpInfo info : infos) {
             int period = info.getPeriod();
-            if(occurrences.containsKey(period)) {
+            if (occurrences.containsKey(period)) {
                 occurrences.put(period, occurrences.get(period) + 1);
             } else {
                 occurrences.put(period, 1);
@@ -579,8 +593,8 @@ public class EntryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
 
         Integer maxValue = 0;
         Integer maxKey = 0;
-        for (Map.Entry<Integer, Integer> entry : occurrences.entrySet()){
-            if(entry.getValue() > maxValue){
+        for (Map.Entry<Integer, Integer> entry : occurrences.entrySet()) {
+            if (entry.getValue() > maxValue) {
                 maxValue = entry.getValue();
                 maxKey = entry.getKey();
             }
@@ -665,7 +679,7 @@ public class EntryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
     }
 
     public void deselectAllEntries() {
-        for (VaultEntry entry: _selectedEntries) {
+        for (VaultEntry entry : _selectedEntries) {
             for (EntryHolder holder : _holders) {
                 if (holder.getEntry() == entry) {
                     holder.setFocusedAndAnimate(false);
@@ -717,6 +731,10 @@ public class EntryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         notifyItemChanged(getItemCount() - 1);
     }
 
+    public Preferences.CodeGrouping getCodeGrouping() {
+        return _codeGroupSize;
+    }
+
     private class FooterView extends RecyclerView.ViewHolder {
         View _footerView;
 
@@ -741,14 +759,23 @@ public class EntryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
 
     public interface Listener {
         void onEntryClick(VaultEntry entry);
+
         boolean onLongEntryClick(VaultEntry entry);
+
         void onEntryMove(VaultEntry entry1, VaultEntry entry2);
+
         void onEntryDrop(VaultEntry entry);
+
         void onEntryChange(VaultEntry entry);
+
         void onEntryCopy(VaultEntry entry);
+
         void onPeriodUniformityChanged(boolean uniform, int period);
+
         void onSelect(VaultEntry entry);
+
         void onDeselect(VaultEntry entry);
+
         void onListChange();
     }
 }

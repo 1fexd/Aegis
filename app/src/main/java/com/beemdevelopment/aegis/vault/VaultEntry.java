@@ -27,6 +27,7 @@ public class VaultEntry extends UUIDMap.Value {
     private boolean _isFavorite;
     private int _usageCount;
     private String _note = "";
+    private String _domain = "";
 
     private VaultEntry(UUID uuid, OtpInfo info) {
         super(uuid);
@@ -69,6 +70,7 @@ public class VaultEntry extends UUIDMap.Value {
             obj.put("icon", _icon == null ? JSONObject.NULL : Base64.encode(_icon));
             obj.put("icon_mime", _icon == null ? null : _iconType.toMimeType());
             obj.put("info", _info.toJson());
+            obj.put("domain", _domain);
         } catch (JSONException e) {
             throw new RuntimeException(e);
         }
@@ -93,6 +95,7 @@ public class VaultEntry extends UUIDMap.Value {
             entry.setGroup(obj.optString("group", null));
             entry.setNote(obj.optString("note", ""));
             entry.setIsFavorite(obj.optBoolean("favorite", false));
+            entry.setDomain(obj.optString("domain", ""));
 
             Object icon = obj.get("icon");
             if (icon != JSONObject.NULL) {
@@ -175,6 +178,11 @@ public class VaultEntry extends UUIDMap.Value {
     public void setNote(String note) { _note = note; }
 
     public void setIsFavorite(boolean isFavorite) { _isFavorite = isFavorite; }
+    public void setDomain(String domain) { _domain = domain; }
+
+    public String getDomain(){
+        return _domain;
+    }
 
     @Override
     public boolean equals(Object o) {
@@ -199,7 +207,8 @@ public class VaultEntry extends UUIDMap.Value {
                 && Arrays.equals(getIcon(), entry.getIcon())
                 && getIconType().equals(entry.getIconType())
                 && getNote().equals(entry.getNote())
-                && isFavorite() == entry.isFavorite();
+                && isFavorite() == entry.isFavorite()
+                && Objects.equals(getDomain(), entry.getDomain());
     }
 
     /**
